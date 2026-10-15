@@ -670,6 +670,10 @@ button:disabled{opacity:.5;cursor:default}
 .pop button{font-size:12.5px;padding:5px 11px}
 #map.zoomed .trip-pin.has-places{opacity:0;pointer-events:none}
 .trip-pin{transition:opacity .2s}
+.spot.left span{left:auto;right:19px;text-align:right}
+.spot{cursor:pointer}
+.pop .pop-one{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;margin:2px 0 8px}
+.pop .pop-cap{margin:0 0 10px;font-weight:700;font-size:13px;line-height:1.4}
 .hint{z-index:1001;position:absolute;left:12px;right:12px;bottom:12px;background:var(--ink);color:var(--sheet);border-radius:8px;padding:8px 12px;font-size:13px}
 .coords{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 /* поездка */
@@ -1056,7 +1060,11 @@ textarea,input,select{border-radius:2px;font-family:var(--f-body)}
 .site-foot{border-top:1px solid var(--ink);padding-top:12px;text-align:center;font-size:12.5px;font-style:italic;color:var(--muted);display:flex;flex-direction:column;gap:2px}
 .site-foot p{margin:0}
 @media print{.site-foot{display:none}}
+.stat small.far-l{max-width:30ch;text-align:center;line-height:1.35}
+@media (max-width:520px){header.mast .stat:has(.far-l){flex-basis:100%;border-left:0!important;margin-top:6px}}
 .leaflet-streets-pane img{filter:sepia(.55) saturate(.75) contrast(.95) brightness(1.02)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .leaflet-streets-pane img{filter:invert(1) hue-rotate(180deg) sepia(.35) brightness(.85) contrast(.9)}}
+:root[data-theme="dark"] .leaflet-streets-pane img{filter:invert(1) hue-rotate(180deg) sepia(.35) brightness(.85) contrast(.9)}
 #map.streets .city{display:none}
 .note-text{white-space:pre-wrap;font-style:italic;font-size:17px;line-height:32px;background-image:repeating-linear-gradient(transparent 0 31px,var(--line) 31px 32px)}
 </style>
@@ -1072,7 +1080,7 @@ textarea,input,select{border-radius:2px;font-family:var(--f-body)}
       <div class="stat"><b id="sTrips">0</b><small id="lTrips">поездок</small></div>
       <div class="stat"><b id="sCountries">0</b><small id="lCountries">стран</small></div>
       <div class="stat"><b id="sPhotos">0</b><small>фото</small></div>
-      <div class="stat"><b id="sFar">—</b><small>км, км от Москвы до самой дальней поездки»</small></div>
+      <div class="stat"><b id="sFar">—</b><small class="far-l">км, от Москвы до самой дальней поездки</small></div>
     </div>
   </header>
 
@@ -1110,7 +1118,7 @@ textarea,input,select{border-radius:2px;font-family:var(--f-body)}
   </section>
   <footer class="site-foot">
     <p>© 2026 Автор альбома. Фотографии и тексты принадлежат автору; использование без разрешения не допускается.</p>
-    <p>Карта: Natural Earth; улицы — © участники OpenStreetMap, © CARTO. Цитаты А. С. Пушкина — общественное достояние.</p>
+    <p>Карта: Natural Earth; улицы — © участники OpenStreetMap. Цитаты А. С. Пушкина — общественное достояние.</p>
   </footer>
 </div>
 
@@ -1198,7 +1206,7 @@ function fmtCoord(lat,lon){return `${Math.abs(lat).toFixed(2)}° ${lat>=0?"с.ш
 function photoUrl(p){return p.src}
 
 /* ---------- карта: Leaflet + данные Natural Earth ---------- */
-let streets=null, map=null, base={}, baseRenderer=null, routeLayer=null, tripLayer=null, placeLayer=null, labelLayer=null, placesData=[], tripMarkers={}, tripRoutes={};
+let streets=null, streetsOff=false, map=null, base={}, baseRenderer=null, routeLayer=null, tripLayer=null, placeLayer=null, labelLayer=null, placesData=[], tripMarkers={}, tripRoutes={};
 const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const BASE_ORDER=["wland","land","urban","wlakes","lakes","rivers","regions","wborders","rail","roads","grat"];
 const STYLE={
@@ -1237,6 +1245,7 @@ function initMap(){
   map.on("popupopen",e=>{
     const el=e.popup.getElement(); if(!el) return;
     el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{map.closePopup();$("tripView").scrollIntoView({behavior:"smooth",block:"start"})});
+    el.querySelectorAll("[data-chgo]").forEach(b=>b.onclick=()=>{selectedId=b.dataset.trip; try{localStorage.setItem("sel",selectedId)}catch(e){}; map.closePopup(); renderStats(); renderTrip(); refreshSel(); goChapter(b.dataset.chgo)});
     el.querySelectorAll("[data-zoom]").forEach(b=>b.onclick=()=>{const t=trips.find(x=>x.id===b.dataset.zoom);if(t){map.closePopup();map.flyTo([t.lat,t.lon],(t.places&&t.places.length)?15:11,{duration:1.2})}});
   });
   fetch("basemap.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(topo=>{
@@ -1251,15 +1260,13 @@ function initMap(){
     updateZoomLayers();
   }).catch(()=>toast("Не удалось загрузить подложку карты"));
   map.createPane("streets").style.zIndex=250;
-  const dark=()=>getComputedStyle(document.documentElement).colorScheme.includes("dark");
-  const tileUrl=()=>`https://{s}.basemaps.cartocdn.com/${dark()?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`;
-  streets=L.tileLayer(tileUrl(),{pane:"streets",subdomains:"abcd",maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'});
-  streets._url2=tileUrl;
+  streets=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{pane:"streets",maxZoom:19,attribution:'&copy; участники <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+  { let ok=0,bad=0; streets.on("tileload",()=>ok++); streets.on("tileerror",()=>{ if(++bad>=6&&!ok){ streetsOff=true; map.removeLayer(streets); $("map").classList.remove("streets"); } }); }
   const mo=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)"); if(mo&&mo.addEventListener) mo.addEventListener("change",restyle);
   new MutationObserver(restyle).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
   drawMap(); fitMine();
 }
-function restyle(){ if(streets) streets.setUrl(streets._url2()); for(const k in base) base[k].setStyle(k==="grat"?STYLE.grat():STYLE[k]); drawMap(); }
+function restyle(){ for(const k in base) base[k].setStyle(k==="grat"?STYLE.grat():STYLE[k]); drawMap(); }
 function updateZoomLayers(){
   if(!map) return; const z=map.getZoom();
   for(const k of BASE_ORDER){ const L_=base[k]; if(!L_) continue; const need=z>=(MINZ[k]||0)&&z<(MAXZ[k]||99), has=map.hasLayer(L_);
@@ -1277,10 +1284,10 @@ function updateZoomLayers(){
     labelLayer.addLayer(L.marker([p.lat,p.lon],{pane:"labels",interactive:false,keyboard:false,
       icon:L.divIcon({className:"city"+(p.p>=1e6?" big":""),html:`<i></i><span>${esc(p.n)}</span>`,iconSize:null,iconAnchor:[3,3]})}));
   }
-  const st=z>=9; $("map").classList.toggle("streets",st);
+  const st=z>=9&&!streetsOff; $("map").classList.toggle("streets",st);
   if(streets){ if(st&&!map.hasLayer(streets)) streets.addTo(map); else if(!st&&map.hasLayer(streets)) map.removeLayer(streets); }
   $("map").classList.toggle("zoomed",z>=13);
-  if(z>=13){ if(!map.hasLayer(placeLayer)) placeLayer.addTo(map); } else if(map.hasLayer(placeLayer)) map.removeLayer(placeLayer);
+  if(z>=13){ if(!map.hasLayer(placeLayer)) placeLayer.addTo(map); setTimeout(layoutSpots); } else if(map.hasLayer(placeLayer)) map.removeLayer(placeLayer);
 }
 function isNearTrip(pt){ // не подписываем город прямо под значком поездки
   return trips.some(t=>{ if(!isFinite(t.lat)) return false; const q=map.latLngToContainerPoint([t.lat,t.lon]); return Math.abs(q.x-pt.x)<40&&pt.y>q.y-60&&pt.y<q.y+12; })
@@ -1303,8 +1310,22 @@ function refreshSel(){
   for(const id in tripMarkers){ const el=tripMarkers[id].getElement(); if(el) el.classList.toggle("sel",id===selectedId); }
   for(const id in tripRoutes){ tripRoutes[id].setStyle({weight:id===selectedId?3:2,opacity:id===selectedId?.95:.5}); }
 }
+function spotPopup(t,p){
+  const ph=(t.photos||[]).filter(x=>x.chapter===p.chapter), first=ph[0];
+  return `<div class="pop"><h5>${esc(p.name)}</h5>
+    <div class="pm">${esc(t.title)}${ph.length?` · ${ph.length} фото`:""}${p.approx?" · место отмечено примерно":""}</div>
+    ${first?`<img class="pop-one" src="${esc(photoUrl(first))}" alt="">${first.short?`<p class="pop-cap">${esc(first.short)}</p>`:""}`:""}
+    <div class="row"><button class="primary" data-chgo="${esc(p.chapter)}" data-trip="${esc(t.id)}">Открыть главу «${esc(p.chapter)}»</button></div></div>`;
+}
+function layoutSpots(){ // подпись уходит влево, если справа мешает соседнее место
+  if(!map||!map.hasLayer(placeLayer)) return; const ms=[]; placeLayer.eachLayer(m=>ms.push(m));
+  const pts=ms.map(m=>map.latLngToContainerPoint(m.getLatLng()));
+  ms.forEach((m,i)=>{ const el=m.getElement(); if(!el) return; const w=(m.options.title||"").length*7.8+26, pt=pts[i];
+    const clash=pts.some((q,j)=>j!==i&&q.x>pt.x&&q.x<pt.x+w&&Math.abs(q.y-pt.y)<20);
+    el.classList.toggle("left",clash); });
+}
 function goChapter(name){
-  const el=[...document.querySelectorAll(".chapter[data-ch]")].find(c=>c.dataset.ch===name);
+  const el=[...document.querySelectorAll("[data-ch]")].find(c=>c.dataset.ch===name);
   (el||$("tripView")).scrollIntoView({behavior:"smooth",block:"start"});
 }
 function drawMap(){
@@ -1326,7 +1347,7 @@ function drawMap(){
       if(!isFinite(p.lat)) return;
       placeLayer.addLayer(L.marker([p.lat,p.lon],{title:p.name+(p.approx?" (примерно)":""),
         icon:L.divIcon({className:"spot",html:`<i></i><span>${esc(p.name)}${p.approx?" <em>≈</em>":""}</span>`,iconSize:null,iconAnchor:[7,7]})})
-        .on("click",()=>{selectedId=t.id;renderStats();renderTrip();refreshSel();goChapter(p.chapter)}));
+        .bindPopup(()=>spotPopup(t,p),{maxWidth:270,minWidth:220,autoPanPadding:[20,20]}));
     });
   });
   if(pickTarget&&isFinite(pickTarget.lat)) routeLayer.addLayer(L.circleMarker([pickTarget.lat,pickTarget.lon],{radius:9,color:acc,weight:3,fill:false,interactive:false}));
@@ -1493,7 +1514,7 @@ function renderBookTrip(t,groups,photos,canW,dist){
   h+=`<div class="book-intro">${esc(intro)}</div>`;
   if(chapters.length) h+=`<nav class="book-toc" aria-label="Содержание книги"><h3>Содержание</h3><ol>${chapters.map((g,i)=>`<li><a href="#book-ch-${i}" data-book-go="book-ch-${i}">${esc(g.name)} <span style="margin-left:auto;color:var(--muted);font-size:12px">${g.items.length} фото</span></a></li>`).join("")}${globalFacts?`<li><a href="#book-facts" data-book-go="book-facts">Истории и факты</a></li>`:""}${(canW||(notes.text||"").trim())?`<li><a href="#book-notes" data-book-go="book-notes">Главное о поездке</a></li>`:""}</ol></nav>`;
   chapters.forEach((g,i)=>{
-    h+=`<section class="book-chapter" id="book-ch-${i}"><div class="book-chapter-no">Глава ${String(i+1).padStart(2,"0")}</div><h3>${esc(g.name)}</h3><div class="grid">`+
+    h+=`<section class="book-chapter" id="book-ch-${i}" data-ch="${esc(g.name)}"><div class="book-chapter-no">Глава ${String(i+1).padStart(2,"0")}</div><h3>${esc(g.name)}</h3><div class="grid">`+
       g.items.map(p=>{const li=lbList.findIndex(x=>x.i===p.i);return `<figure><button class="ph" data-lb="${li}" aria-label="Открыть фото"><img loading="lazy" src="${esc(photoUrl(p))}" alt="${esc(p.short||p.caption||"Фото из поездки")}"></button><figcaption><div class="capt">${p.short?`<div class="capt-short">${esc(p.short)}</div>`:""}${p.caption?`<div class="more-body">${esc(p.caption)}</div>`:""}</div>${canW?`<button class="edit" data-ed="${p.i}" aria-label="Изменить подпись">✎</button>`:""}</figcaption></figure>`}).join("")+`</div>${factsHtml(t,g.name)}</section>`;
   });
   if(globalFacts) h+=`<section class="book-facts-end" id="book-facts">${globalFacts}</section>`;

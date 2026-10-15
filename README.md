@@ -62,7 +62,7 @@
 ## Благодарности и источники
 
 - Подложка карты: [Natural Earth](https://www.naturalearthdata.com/) — общественное достояние.
-- Улицы при приближении: © участники [OpenStreetMap](https://www.openstreetmap.org/copyright), оформление © [CARTO](https://carto.com/attributions).
+- Улицы при приближении: © участники [OpenStreetMap](https://www.openstreetmap.org/copyright).
 - Библиотеки: [Leaflet](https://leafletjs.com/) (BSD-2-Clause), [topojson-client](https://github.com/topojson/topojson-client) (ISC).
 - Шрифт PT Serif — ParaType, лицензия SIL Open Font License.
 - Исторические факты — по книге о Пушкине и материалам музеев Царского Села.
