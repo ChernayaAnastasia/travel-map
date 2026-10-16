@@ -65,7 +65,7 @@
 - Улицы при приближении: © участники [OpenStreetMap](https://www.openstreetmap.org/copyright).
 - Библиотеки: [Leaflet](https://leafletjs.com/) (BSD-2-Clause), [topojson-client](https://github.com/topojson/topojson-client) (ISC).
 - Шрифт PT Serif — ParaType, лицензия SIL Open Font License.
-- Исторические факты — по книге А.С. Пушкин (издательство 'Белый город') и материалам музеев Царского Села.
+- Исторические факты — по книге А.С. Пушкин (издательство 'Белый город'), материалам музеев Царского Села и статье на сайте [Arzamas.academy](https://arzamas.academy/materials/893).
 
 ## Права
 
