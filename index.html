@@ -850,11 +850,12 @@ figcaption{font-style:italic;font-size:13.5px}
 .facts h4{text-align:center;font-weight:400;font-style:italic;font-size:22px;color:var(--ink)}
 .factgrid{gap:18px 34px}
 .fact b{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-.fact p{font-size:15px;line-height:1.6;text-align:justify;hyphens:auto}
+.fact p{font-size:15px;line-height:1.6;text-align:justify;hyphens:auto;white-space:pre-line}
 .fact q{font-style:italic;font-weight:400}
 .more-facts{border-top:1px solid var(--line)}
 .more-facts>summary{font-weight:400;font-style:italic;font-size:15px;text-align:center}
 .facts small{text-align:center;font-style:italic}
+.facts small a{color:var(--accent)}
 
 /* эпиграф — как цитата внизу журнальной полосы */
 .epi{max-width:40rem;border-top:1px solid var(--ink);padding-top:22px}
@@ -1117,7 +1118,7 @@ textarea,input,select{border-radius:2px;font-family:var(--f-body)}
     <div class="empty" id="loading">Загружаю поездки…</div>
   </section>
   <footer class="site-foot">
-    <p>© 2026 Черная Анастасия и Черная Ирина. Фотографии — Черная Ирина.</p>
+    <p>© 2026 Черная Анастасия и Черная Ирина. Фотографии — Черная Ирина; использование без разрешения не допускается. Подписи и истории подготовлены с помощью ИИ (Claude).</p>
     <p>Карта: Natural Earth; улицы — © участники OpenStreetMap. Цитаты А. С. Пушкина — общественное достояние.</p>
   </footer>
 </div>
@@ -1542,7 +1543,7 @@ function factsHtml(t,ch,shown){
   const top=list.filter(f=>f.top), rest=list.filter(f=>!f.top), split=top.length&&rest.length;
   return `<aside class="facts"><h4>${esc(head)}</h4><div class="factgrid">`+(split?top:list).map(card).join("")+`</div>`+
     (split?`<details class="more-facts"><summary>Ещё истории (${rest.length})</summary><div class="factgrid">${rest.map(card).join("")}</div></details>`:"")+
-    `${t.factsSource?`<small>${esc(t.factsSource)}</small>`:""}</aside>`;
+    `${t.factsSource?`<small>${esc(t.factsSource).replace(/https?:\/\/[^\s<]+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,"")}</a>`)}</small>`:""}</aside>`;
 }
 function epigraphHtml(t){
   const e=t.epigraph; if(!e||!e.lines||!e.lines.length) return "";
